@@ -80,7 +80,7 @@ class TestFlaskApp(unittest.TestCase):
     def test_has_default_route(self):
         path = "/"
         rv = self.app.get(path)
-        self.assertIn("Hi", rv.data)
+        self.assertIn("configured correctly", rv.data)
         self.assertEquals("200 OK", rv.status)
 
     def test_email_address_to_phone_number(self):
@@ -90,10 +90,11 @@ class TestFlaskApp(unittest.TestCase):
         self.assertEquals(result_expected, result_actual)
 
     def test_phone_number_to_email_address(self):
-        example_input = '+14155551212'
+        example_inputs = ['+14155551212', '(415) 555-1212']
         result_expected = '14155551212@sms.example.com'
-        result_actual = flask_app.phone_to_email(example_input)
-        self.assertEquals(result_expected, result_actual)
+        for example_input in example_inputs:
+            result_actual = flask_app.phone_to_email(example_input)
+            self.assertEquals(result_expected, result_actual)
 
     def test_sms_with_sendgrid_failure(self):
         def sendgrid_send(msg):
@@ -147,8 +148,8 @@ class TestFlaskApp(unittest.TestCase):
         rv = self.app.post(path, data=example_input)
 
         expected_error = ("No email address is configured "
-                          "to receive SMS messages from '+14155551219' - "
-                          "Try updating the 'address_book' dict in app.py?")
+                          "to receive SMS messages from '+14155551219'"
+                          " - Try updating the 'address-book.cfg' file?")
         flask_app.logging.warning.assert_called_with(expected_error)
         self.assertFalse(flask_app.sendgrid_api.send.called)
         self.assertEquals("400 BAD REQUEST", rv.status)
@@ -226,9 +227,9 @@ class TestFlaskApp(unittest.TestCase):
         }
         path = "/handle-email"
         rv = self.app.post(path, data=example_input)
-        expected_error = ("The email address 'fake@example.com' is not "
-                          "configured to send SMS via this application - "
-                          "Try updating the 'address_book' dict in app.py?")
+        expected_error = ("The email address 'fake@example.com' "
+                          "is not configured to send SMS via this application"
+                          " - Try updating the 'address-book.cfg' file?")
         client = flask_app.twilio_api
         self.assertFalse(client.messages.create.called)
         # So that SendGrid doesn't keep trying to deliver the email
@@ -245,8 +246,6 @@ class TestFlaskApp(unittest.TestCase):
 
         rv = self.app.get('/')
         self.assertEquals("500 INTERNAL SERVER ERROR", rv.status)
-        expected_text = ("Only one email address can be configured per "
-                         "phone number. Please update "
-                         "the 'address_book' dict so that each phone number "
-                         "matches exactly one email address.")
+        expected_text = ("Only one email address can be "
+                         "configured per phone number.")
         self.assertIn(expected_text, rv.data)

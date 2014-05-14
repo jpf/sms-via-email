@@ -52,6 +52,12 @@ class InvalidNumberInEmail(InvalidInput):
         return template.format(self.invalid_input)
 
 
+class InvalidPhoneNumber(InvalidInput):
+    def __str__(self):
+        template = "Invalid phone number in HTTP POST: {}"
+        return template.format(self.invalid_input)
+
+
 class Lookup:
     def __init__(self):
         self.by_phone_number = address_book
@@ -73,7 +79,13 @@ class Lookup:
             raise NoEmailForNumber(phone_number)
 
 
-def phone_to_email(phone_number):
+def phone_to_email(potential_number):
+    try:
+        ph = phonenumbers
+        number = ph.parse(potential_number, 'US')
+        phone_number = ph.format_number(number, ph.PhoneNumberFormat.E164)
+    except Exception, e:
+        raise InvalidPhoneNumber(str(e))
     phone_number = phone_number.replace('+', '')
     return("{}@{}".format(phone_number, konf.email_domain))
 
@@ -84,7 +96,7 @@ def email_to_phone(from_email):
     potential_number = '+' + username
     ph = phonenumbers
     try:
-        ph_num = ph.parse(potential_number)
+        ph_num = ph.parse(potential_number, 'US')
         return ph.format_number(ph_num, ph.PhoneNumberFormat.E164)
     except:
         raise InvalidNumberInEmail(from_email)
@@ -123,6 +135,7 @@ def main():
         error_message = template.format(missing)
         return warn(error_message), 500
     elif duplicates_in_address_book():
+        print str(address_book)
         error_message = ("Only one email address can be configured per "
                          "phone number. Please update the 'address-book.cfg' "
                          "file so that each phone number "
@@ -184,7 +197,9 @@ def handle_email():
     try:
         rv = twilio_api.messages.create(**sms)
         return rv.sid
-    except:
+    except Exception as e:
+        print "oh no"
+        print str(e)
         error_message = "Error sending message to Twilio"
         return warn(error_message), 400
 
@@ -193,4 +208,5 @@ if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5000))
     if port == 5000:
         app.debug = True
+        print "in debug mode"
     app.run(host='0.0.0.0', port=port)
