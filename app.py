@@ -6,17 +6,27 @@ from flask import Flask
 from flask import request
 from flask import url_for
 from twilio.rest import TwilioRestClient
-import phonenumbers
+import phonenumbers as ph
 import sendgrid
 import simplejson
 
 from konfig import Konfig
 
+
+def warn(message):
+    logging.warning(message)
+    return message
+
 address_book = {}
-user_list = ConfigParser.ConfigParser()
-user_list.read('address-book.cfg')
-for user in user_list.items('users'):
-    address_book[user[0]] = user[1]
+address_book_file = 'address-book.cfg'
+try:
+    user_list = ConfigParser.ConfigParser()
+    user_list.read(address_book_file)
+    for user in user_list.items('users'):
+        address_book[user[0]] = user[1]
+except:
+    template = ("{} does not exist")
+    warn(template.format(address_book_file))
 
 app = Flask(__name__)
 konf = Konfig()
@@ -46,7 +56,7 @@ class NoNumberForEmail(InvalidInput):
         return template.format(self.invalid_input)
 
 
-class InvalidNumberInEmail(InvalidInput):
+class InvalidPhoneNumberInEmail(InvalidInput):
     def __str__(self):
         template = "Invalid phone number in email address: {}"
         return template.format(self.invalid_input)
@@ -81,7 +91,6 @@ class Lookup:
 
 def phone_to_email(potential_number):
     try:
-        ph = phonenumbers
         number = ph.parse(potential_number, 'US')
         phone_number = ph.format_number(number, ph.PhoneNumberFormat.E164)
     except Exception, e:
@@ -94,12 +103,11 @@ def email_to_phone(from_email):
     (username, domain) = from_email.split('@')
 
     potential_number = '+' + username
-    ph = phonenumbers
     try:
         ph_num = ph.parse(potential_number, 'US')
         return ph.format_number(ph_num, ph.PhoneNumberFormat.E164)
     except:
-        raise InvalidNumberInEmail(from_email)
+        raise InvalidPhoneNumberInEmail(from_email)
 
 
 def check_for_missing_settings():
@@ -119,11 +127,6 @@ def duplicates_in_address_book():
     if len(values) != len(set(values)):
         duplcates_found = True
     return duplcates_found
-
-
-def warn(message):
-    logging.warning(message)
-    return message
 
 
 @app.route('/')
