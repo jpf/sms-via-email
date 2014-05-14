@@ -43,7 +43,7 @@ class InvalidInput(Exception):
 class NoEmailForNumber(InvalidInput):
     def __str__(self):
         template = ("No email address is configured to receive "
-                    "SMS messages from '{}' - "
+                    "SMS messages sent to '{}' - "
                     "Try updating the 'address-book.cfg' file?")
         return template.format(self.invalid_input)
 
@@ -77,12 +77,21 @@ class Lookup:
             self.by_email_address[email_address] = phone_number
 
     def phone_for_email(self, email_address):
+        '''Which phone number do we send this SMS message from?'''
         if email_address in self.by_email_address:
             return self.by_email_address[email_address]
         else:
             raise NoNumberForEmail(email_address)
 
-    def email_for_phone(self, phone_number):
+    def email_for_phone(self, potential_number):
+        '''Which email address do we forward this SMS message to?'''
+
+        try:
+            number = ph.parse(potential_number, 'US')
+            phone_number = ph.format_number(number, ph.PhoneNumberFormat.E164)
+        except Exception, e:
+            raise InvalidPhoneNumber(str(e))
+
         if phone_number in self.by_phone_number:
             return self.by_phone_number[phone_number]
         else:
@@ -90,6 +99,8 @@ class Lookup:
 
 
 def phone_to_email(potential_number):
+    '''Converts a phone number like +14155551212
+       into an email address like 14155551212@sms.example.com'''
     try:
         number = ph.parse(potential_number, 'US')
         phone_number = ph.format_number(number, ph.PhoneNumberFormat.E164)
@@ -100,6 +111,8 @@ def phone_to_email(potential_number):
 
 
 def email_to_phone(from_email):
+    '''Converts an email address like 14155551212@sms.example.com
+       into a phone number like +14155551212'''
     (username, domain) = from_email.split('@')
 
     potential_number = '+' + username

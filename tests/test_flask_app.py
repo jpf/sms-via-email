@@ -90,7 +90,7 @@ class TestFlaskApp(unittest.TestCase):
         self.assertEquals(result_expected, result_actual)
 
     def test_phone_number_to_email_address(self):
-        example_inputs = ['+14155551212', '(415) 555-1212']
+        example_inputs = ['+14155551212', '(415) 555-1212', '4155551212']
         result_expected = '14155551212@sms.example.com'
         for example_input in example_inputs:
             result_actual = flask_app.phone_to_email(example_input)
@@ -116,6 +116,14 @@ class TestFlaskApp(unittest.TestCase):
         self.assertEquals("400 BAD REQUEST", rv.status)
         self.assertIn("Error sending message to SendGrid", rv.data)
         self.assertIn("Mocked reply", rv.data)
+
+    def test_email_for_phone(self):
+        example_inputs = ['+14155551212', '4155551212', '(415) 555-1212']
+        result_expected = 'alice@example.com'
+        lookup = flask_app.Lookup()
+        for example_input in example_inputs:
+            result_actual = lookup.email_for_phone(example_input)
+            self.assertEquals(result_expected, result_actual)
 
     def test_sms_triggers_email(self):
         example_input = {
@@ -148,7 +156,7 @@ class TestFlaskApp(unittest.TestCase):
         rv = self.app.post(path, data=example_input)
 
         expected_error = ("No email address is configured "
-                          "to receive SMS messages from '+14155551219'"
+                          "to receive SMS messages sent to '+14155551219'"
                           " - Try updating the 'address-book.cfg' file?")
         flask_app.logging.warning.assert_called_with(expected_error)
         self.assertFalse(flask_app.sendgrid_api.send.called)
